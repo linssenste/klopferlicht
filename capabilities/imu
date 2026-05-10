@@ -1,0 +1,64 @@
+import smbus2
+import time
+
+# BMI160 I2C address
+BMI160_ADDR = 0x69 # run i2cdetect -y 1
+
+# Registers
+CMD_REG = 0x7E
+ACC_DATA_REG = 0x12
+
+bus = smbus2.SMBus(1)
+
+# Enable accelerometer
+bus.write_byte_data(BMI160_ADDR, CMD_REG, 0x11)
+
+time.sleep(0.1)
+
+print("BMI160 accelerometer test started")
+
+
+def read_accel():
+    data = bus.read_i2c_block_data(BMI160_ADDR, ACC_DATA_REG, 6)
+
+    def convert(lsb, msb):
+        value = (msb << 8) | lsb
+        if value > 32767:
+            value -= 65536
+        return value
+
+    ax = convert(data[0], data[1])
+    ay = convert(data[2], data[3])
+    az = convert(data[4], data[5])
+
+    return ax, ay, az
+
+
+def get_orientation(ax, ay):
+    if abs(ax) > abs(ay):
+        if ax > 0:
+            return "Landscape Right"
+        else:
+            return "Landscape Left"
+    else:
+        if ay > 0:
+            return "Portrait Up"
+        else:
+            return "Portrait Down"
+
+
+try:
+    while True:
+        ax, ay, az = read_accel()
+
+        orientation = get_orientation(ax, ay)
+
+        print(
+            f"{orientation} | "
+            f"X={ax} Y={ay} Z={az}"
+        )
+
+        time.sleep(0.2)
+
+except KeyboardInterrupt:
+    print("Stopped")
